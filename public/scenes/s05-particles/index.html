@@ -1,0 +1,195 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>proton.js-render-pixelrender</title>
+		<meta charset="utf-8">
+		<style type="text/css">
+			body {
+				background-color: #333333;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#container {
+				width: 1024px;
+				height: 768;
+				margin-top: 50px;
+				margin-left: -501px;
+				left: 50%;
+				position: absolute;
+				background: #000;
+				overflow: hidden;
+			}
+
+			#testCanvas {
+				background: #000;
+			}
+
+		</style>
+	</head>
+	<body>
+        <audio id="themeAudio">
+            <source src="../common/audio/LaVieEnRose.mp3" type="audio/ogg">
+        </audio>
+        
+		<div id="container">
+			<canvas id="testCanvas"></canvas>
+		</div>
+		<script src="../common/js/proton-1.0.0.min.js"></script>
+		<script src="../common/js/PxLoader.js"></script>
+		<script src="../common/js/PxLoaderImage.js"></script>
+        <script src="../common/js/underscore-min.js"></script>
+		<script>
+			var proton;
+			var canvas;
+			var context;
+			var renderer;
+			var logoZone;
+			var emitter;
+			var imageDatas;
+			var rect, rect2;
+			var gravityBehaviour, randomBehaviour, gravityWellBehaviour;
+			var rootIndex = 1;
+
+			Main();
+			function Main() {
+				canvas = document.getElementById("testCanvas");
+				canvas.width = 1003;
+				canvas.height = 610;
+				context = canvas.getContext('2d');
+
+				imageDatas = [];
+				rect = new Proton.Rectangle(100, 5, 800, 600);
+				rect2 = new Proton.Rectangle(rect.x - 100, rect.y - 100, rect.width + 200, rect.height + 200);
+				randomBehaviour = new Proton.RandomDrift(0, 0, 0.05);
+				var rectZone = new Proton.RectZone(rect2.x, rect2.y, rect2.width, rect2.height);
+				crossBehaviour = new Proton.CrossZone(rectZone, 'bound');
+				gravityWellBehaviour = new Proton.GravityWell({
+					x : canvas.width / 2,
+					y : canvas.height / 2
+				}, 0, 0);
+
+				canvas.addEventListener('mousedown', mouseDownHandler, false);
+				loadImage();
+			}
+
+			
+
+			function loadImage() {
+				logoZone = [];
+				var logo = [];
+				var loader = new PxLoader();
+                logo[0] = loader.addImage('logos/hanzi-me.png');
+                logo[1] = loader.addImage('logos/hanzi-we.png');
+				logo[2] = loader.addImage('logos/logo1.png');
+                logo[3] = loader.addImage('logos/hanzi-again.png');
+                logo[4] = loader.addImage('logos/hanzi-meet.png');
+                logo[5] = loader.addImage('logos/logo2.png');
+				loader.addCompletionListener(function() {
+                //console.log('logo.length',logo.length);
+					for (var i = 0; i < logo.length; i++) {
+						var imagedata = Proton.Util.getImageData(context, logo[i], rect);
+						logoZone.push(new Proton.ImageZone(imagedata, rect.x, rect.y));
+						imageDatas.push(imagedata);
+					}
+					createProton(rect);
+					tick();
+				});
+				loader.start();
+			}
+
+			function createProton() {
+				proton = new Proton;
+				emitter = new Proton.Emitter();
+				emitter.rate = new Proton.Rate(new Proton.Span(3000), new Proton.Span(0.1));
+				emitter.addInitialize(new Proton.Mass(1));
+				emitter.addInitialize(new Proton.P(new Proton.RectZone(rect2.x, rect2.y, rect2.width, rect2.height)));
+
+				emitter.addBehaviour(randomBehaviour);
+				emitter.addBehaviour(customToZoneBehaviour(logoZone));
+				emitter.addBehaviour(crossBehaviour);
+				emitter.addBehaviour(gravityWellBehaviour);
+
+				emitter.emit('once');
+				proton.addEmitter(emitter);
+
+				renderer = new Proton.Renderer('pixel', proton, canvas);
+				renderer.createImageData(rect2);
+				renderer.start();
+			}
+
+			function customToZoneBehaviour(logoZones) {
+				return {
+					initialize : function(particle) {
+						particle.R = Math.random() * 10;
+						particle.Angle = Math.random() * Math.PI * 2;
+						particle.speed = Math.random() * (-2) + 1;
+                        //console.log('zone1,2', zone1, zone2);
+						//particle.zones = [zone1.getPosition().clone(), zone2.getPosition().clone(),zone3.getPosition().clone()];
+                        //console.log("_ is ", _);
+                        //console.log("logoZones is ", logoZones);
+                        particle.zones = _.map(logoZones, function(item){
+                          return  item.getPosition().clone();
+                        });
+                        //console.log('particle.zones',particle.zones);
+						particle.colors = getColor(particle.zones);
+					},
+
+					applyBehaviour : function(particle) {
+						if (rootIndex % 2 != 0) {
+							particle.v.clear();
+							particle.Angle += particle.speed;
+							//var index = (rootIndex % 4 + 1) / 2 - 1;
+                            							var index = (rootIndex % (logoZones.length*2) + 1) / 2 - 1;
+
+							var x = particle.zones[index].x + particle.R * Math.cos(particle.Angle);
+							var y = particle.zones[index].y + particle.R * Math.sin(particle.Angle);
+							particle.p.x += (x - particle.p.x) * 0.05;
+							particle.p.y += (y - particle.p.y) * 0.05;
+							particle.transform.rgb.r = particle.colors[index].r;
+							particle.transform.rgb.g = particle.colors[index].g;
+							particle.transform.rgb.b = particle.colors[index].b;
+						}
+					}
+				}
+
+			}
+
+			function getColor(posArr) {
+				var arr = [];
+				for (var i = 0; i < posArr.length; i++) {
+					arr.push(logoZone[i].getColor(posArr[i].x, posArr[i].y));
+				}
+				return arr;
+			}
+
+			function mouseDownHandler(e) {
+				rootIndex++;
+				if (rootIndex % 2 == 0) {
+					if (rootIndex % 4 == 2)
+						randomBehaviour.reset(30, 30, 0.001);
+					else
+						gravityWellBehaviour.reset({
+							x : canvas.width / 2,
+							y : canvas.height / 2
+						}, 3000, 500);
+				} else {
+					randomBehaviour.reset(0, 0, 0.001);
+					gravityWellBehaviour.reset({
+						x : canvas.width / 2,
+						y : canvas.height / 2
+					}, 0, 0);
+				}
+			}
+
+			function tick() {
+				requestAnimationFrame(tick);
+
+				proton.update();
+			}
+            
+            //Play the audio (just once)
+            var audio = document.getElementById("themeAudio");
+            audio.play();
+		</script>
+	</body>
+</html>

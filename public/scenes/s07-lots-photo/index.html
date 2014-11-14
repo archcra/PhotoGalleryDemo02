@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<title>three.js css3d - youtube</title>
+		<style>
+			html, body {
+				height: 100%;
+			}
+
+			body {
+				background-color: #000000;
+				margin: 0;
+				font-family: Arial;
+				overflow: hidden;
+			}
+
+			#search {
+				position: absolute;
+				bottom: 30px;
+				width: 100%;
+				text-align: center;
+			}
+
+			#search input {
+				color: #ffffff;
+				background-color: transparent;
+				border: 1px solid #0080ff;
+				padding: 10px;
+				font-size: 20px;
+				text-transform: uppercase;
+				-webkit-border-radius: 0px; /* workaround for ios safari */
+			}
+
+			#search button {
+				color: #0080ff;
+				background-color: transparent;
+				border: 1px solid #0080ff;
+				padding: 10px;
+				font-size: 20px;
+				text-transform: uppercase;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+        <audio id="themeAudio">
+            <source src="../common/audio/LaVieEnRose.mp3" type="audio/ogg">
+        </audio>
+        
+		<script src="../common/js/libs/three.min.js"></script>
+
+		<script src="../common/js/libs/tween.min.js"></script>
+		<script src="../common/js/CSS3DRenderer.js"></script>
+
+		<div id="container"></div>
+		<div id="search"><input id="query" type="text" value="Set 1"><button id="button">More</button></div>
+
+		<script>
+			var camera, scene, renderer;
+			var player;
+
+			var auto = true;
+
+			var Element = function ( entry ) {
+				var dom = document.createElement( 'div' );
+				dom.style.width = '480px';
+				dom.style.height = '360px';
+
+				var image = document.createElement( 'img' );
+				image.style.position = 'absolute';
+				image.style.width = '480px';
+				image.style.height = '360px';
+				image.src = './images/'+entry;
+				dom.appendChild( image );
+
+				
+
+				var blocker = document.createElement( 'div' );
+				blocker.style.position = 'absolute';
+				blocker.style.width = '480px';
+				blocker.style.height = '360px';
+				blocker.style.background = 'rgba(0,0,0,0.5)';
+				blocker.style.cursor = 'pointer';
+				dom.appendChild( blocker );
+
+				var object = new THREE.CSS3DObject( dom );
+				object.position.x = Math.random() * 4000 - 2000;
+				// object.position.y = Math.random() * 2000 - 1000;
+				object.position.y = 3000;
+				object.position.z = Math.random() * - 5000;
+
+				//
+
+				image.addEventListener( 'load', function ( event ) {
+
+					button.style.visibility = 'visible';
+
+					new TWEEN.Tween( object.position )
+						.to( { y: Math.random() * 2000 - 1000 }, 2000 )
+						.easing( TWEEN.Easing.Exponential.Out )
+						.start();
+
+				}, false );
+
+				dom.addEventListener( 'mouseover', function () {
+                    object.focus = true;
+					button.style.WebkitFilter = '';
+					blocker.style.background = 'rgba(0,0,0,0)';
+
+				}, false );
+
+				dom.addEventListener( 'mouseout', function () {
+                    object.focus = false;
+					button.style.WebkitFilter = 'grayscale()';
+					blocker.style.background = 'rgba(0,0,0,0.75)';
+
+				}, false );
+
+				return object;
+
+			};
+
+			init();
+			animate();
+
+			function init() {
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 5000 );
+				camera.position.y = - 25;
+
+				scene = new THREE.Scene();
+
+				renderer = new THREE.CSS3DRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.domElement.style.position = 'absolute';
+				renderer.domElement.style.top = 0;
+				document.getElementById( 'container' ).appendChild( renderer.domElement );
+
+				//
+                var query = document.getElementById( 'query' );
+				query.addEventListener( 'keyup', function ( event ) {
+
+					if ( event.keyCode === 13 ) {
+                       // console.log('next set is ', nextSet());
+                        query.value='set'+nextSet();
+						addImages( query.value );
+
+					}
+
+				}, false );
+
+				var button = document.getElementById( 'button' );
+				button.addEventListener( 'click', function ( event ) {
+                        //console.log('next set is ', nextSet());
+                        query.value = 'set'+nextSet();
+					addImages( query.value );
+
+				}, false );
+
+			
+
+				addImages( 'set1' );
+
+				document.body.addEventListener( 'mousewheel', onMouseWheel, false );
+
+				document.body.addEventListener( 'click', function ( event ) {
+
+					auto = true;
+
+					
+
+					new TWEEN.Tween( camera.position )
+							.to( { x: 0, y: - 25 }, 1500 )
+							.easing( TWEEN.Easing.Exponential.Out )
+							.start();
+
+				}, false );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			
+			
+			function addImages( setId ) {
+
+				
+
+				for ( var i = 0; i < 54; i ++ ) {
+
+					( function ( data, time ) {
+
+						setTimeout( function () {
+
+							scene.add( new Element(setId+'/'+padDigits(data,2) + ".jpg" ) );
+
+						}, time );
+
+					} )(  i , i * 15 );
+				
+				}
+
+			}
+
+            
+			function move( delta ) {
+                
+				for ( var i = 0; i < scene.children.length; i ++ ) {
+
+					var object = scene.children[ i ];
+                    if (object.focus){
+                        object.position.z += delta * 10;
+                        
+                        //var X = scene.width
+                        console.log('focus object x,y:', object.position.x,object.position.y);
+                        if(object.position.x > -1000){
+                            object.position.x -= delta * 10;
+                        }
+                        if(object.position.y > 0){
+                            object.position.y -= delta * 10;
+                        }
+
+                    }else{
+					   object.position.z += delta;
+                    }
+					if ( object.position.z > 0 ) {
+                        // TODO: Should remove this
+						//object.position.z -= 5000;
+
+					} else if ( object.position.z < - 5000 ) {
+
+						object.position.z += 5000;
+
+					}
+
+				}
+
+			}
+
+			function onMouseWheel( event ) {
+
+				move( event.wheelDelta );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				TWEEN.update();
+
+				if ( auto === true ) {
+
+					move( 1 );
+
+				}
+
+				renderer.render( scene, camera );
+
+			}
+
+            function padDigits(number, digits) {
+	           return Array(Math.max(digits - String(number).length + 1, 0)).join(0) + number;
+    }
+            //Test
+            //console.log(padDigits(1,2));
+            
+            function getSetIndex(){
+                setIndex =0;
+                return function(){
+                    setIndex ++;
+                    if (setIndex >6){
+                        setIndex = 1;
+                    }
+                    return setIndex;
+                }
+            }
+            var nextSet = getSetIndex();
+           
+            //Play the audio (just once)
+            var audio = document.getElementById("themeAudio");
+            audio.play();
+		</script>
+	</body>
+</html>

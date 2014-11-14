@@ -1,0 +1,123 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<title>three.js particle tutorial</title>
+		<meta charset="utf-8">
+
+		<style type="text/css">
+			body {
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+
+        <script src="./js/shootingStars-bars-version.js"></script>
+        <script type="text/javascript" src="../common/js/three.min.60.js"></script>
+        <script src="../common/fonts/youyuan_regular.typeface.js"></script>
+        <script type="text/javascript" src="../common/fonts/helvetiker_regular.typeface.js"></script>
+        <script type="text/javascript" src="../common/js/jsmodeler.js"></script>
+        <script type="text/javascript" src="./js/531Text.js"></script>
+        <script type="text/javascript" src="./js/greatDodecahedron.js"></script>
+        <script type="text/javascript" src="./js/factoryName.js"></script> 
+        <script type="text/javascript" src="js/parametersAdjuster.js"></script>
+       
+        
+
+	</head>
+	<body>
+        <audio id="global_music_effect">
+            <source src="audio/logo531.mp3" type="audio/ogg">
+        </audio>
+		<script>
+			var camera, scene, renderer; 
+            var moveItFlag =false;
+            var greatDodecahedron, text531, textFactory;
+			// let's get going! 
+			init();
+            greatDodecahedron = getGreatDodecahedron();
+            scene.add(greatDodecahedron);   
+            addControlFor(greatDodecahedron);
+              var spotLight = new THREE.SpotLight(0xffffff);
+        spotLight.position = new THREE.Vector3(0, 0, 1000);
+        spotLight.target.position.x = 0;
+        spotLight.target.position.y = 0;
+        spotLight.target.position.z = 900;
+        spotLight.intensity = 2.4;
+
+        scene.add(spotLight);
+            
+            add531Meshes(scene);
+
+            addFactoryMesh(scene);
+            
+			function init() {
+
+				// Camera params : 
+				// field of view, aspect ratio for render output, near and far clipping plane. 
+				camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 4000 );
+	
+				// move the camera backwards so we can see stuff! 
+				// default position is 0,0,0. 
+				camera.position.z = 1000;
+
+				// the scene contains all the 3D object data
+				scene = new THREE.Scene();
+				
+				// camera needs to go in the scene 
+				scene.add(camera);
+	
+				// and the CanvasRenderer figures out what the 
+				// stuff in the scene looks like and draws it!
+	 
+				renderer = new THREE.CanvasRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+	
+				// the renderer's canvas domElement is added to the body
+				document.body.appendChild( renderer.domElement );
+
+				makeParticles(scene); 
+			
+				// add the mouse move listener
+				document.addEventListener( 'mousemove', onMouseMove, false );
+				
+				// render 30 times a second (should also look 
+				// at requestAnimationFrame) 
+				setInterval(update,1000/30); 
+                
+                setTimeout (iLikeMoveIt , 14000);
+
+                
+                
+            }
+
+			// the main update function, called 30 times a second
+
+			function update() {
+				updateParticles();
+                if (moveItFlag){
+                    greatDodecahedron.rotation.x += .1;
+                    greatDodecahedron.rotation.y += .1;
+                    //greatDodecahedron.rotation.z += .1;
+                    if( greatDodecahedron.position.z <850){
+                        greatDodecahedron.position.z += 5;
+                    }else{
+                        greatDodecahedron.rotation.x += .01;
+                        greatDodecahedron.rotation.y += .01;
+                        greatDodecahedron.rotation.z += 0.01;
+                    }
+                    //console.log('position', greatDodecahedron.position.z);
+                }
+				// and render the scene from the perspective of the camera
+				renderer.render( scene, camera );
+			}
+            
+            function iLikeMoveIt(){
+                moveItFlag = true;   
+            }
+
+            var audio = document.getElementById("global_music_effect");
+            audio.play();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,368 @@
+<!-- try to move the camera with keys -->
+
+<!DOCTYPE html>
+<head>
+	<meta charset="utf-8">
+
+<script src='./libs/require.js'></script>
+<script src='./libs/three.min.js'></script>
+<script src='./libs/oimo.js'></script>
+<script src='./libs/threex.oimo.js'></script>
+    
+    <link rel="stylesheet" type="text/css" href="css/dialog.css" />
+	<script src="js/dialog.js"></script>
+    <script src="js/dialogContents.js"></script>
+</head>
+<body style='margin: 0px; background-color: #bbbbbb; overflow: hidden;'>
+        <audio id="global_music_effect">
+        <source src="audio/友谊地久天长.mp3" type="audio/ogg">
+        </audio>
+    <div id="overlay" class="overlay" >
+        <div id="dialog" class="dialog">content </div>
+    </div>
+    
+    <script>
+require([ './threex.oimo-master/package.require.js'
+, './threex.oimo-master/examples/bower_components/threex.planets/package.require.js'
+, './threex.oimo-master/examples/bower_components/threex.crates/package.require.js'
+, './threex.oimo-master/examples/bower_components/threex.grassground/package.require.js'
+, './threex.oimo-master/examples/bower_components/threex.sportballs/package.require.js'
+, './threex.oimo-master/examples/bower_components/threex.daynight/package.require.js'
+] , function(){
+var renderer	= new THREE.WebGLRenderer({
+antialiasing	: true
+});
+renderer.shadowMapEnabled	= true
+renderer.setSize( window.innerWidth, window.innerHeight );
+document.body.appendChild( renderer.domElement );
+
+var onRenderFcts= [];
+var scene	= new THREE.Scene();
+var camera	= new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 10000)
+camera.position.z = 30
+
+//////////////////////////////////////////////////////////////////////////////////
+// set 3 point lighting //
+//////////////////////////////////////////////////////////////////////////////////
+
+;(function(){
+// add a ambient light
+var light	= new THREE.AmbientLight( 0x020202 )
+scene.add( light )
+// add a light front right
+var light	= new THREE.DirectionalLight('white', 1)
+light.position.set(0.5, 0.5, 2).multiplyScalar(10)
+scene.add( light )
+light.castShadow	= true
+light.shadowCameraNear	= 0.01
+light.shadowCameraFar	= 250
+light.shadowCameraFov	= 45
+
+light.shadowCameraLeft	= -20
+light.shadowCameraRight	= 20
+light.shadowCameraTop	= 30
+light.shadowCameraBottom= -30
+// light.shadowCameraVisible = true
+
+light.shadowBias	= 0.001
+light.shadowDarkness	= 0.6
+
+light.shadowMapWidth	= 2048
+light.shadowMapHeight	= 2048
+
+// // add a light behind
+// var light = new THREE.DirectionalLight('white', 0.75)
+// light.position.set(-0.5, -0.5, -2)
+})()
+
+//////////////////////////////////////////////////////////////////////////////////
+// oimo world //
+//////////////////////////////////////////////////////////////////////////////////
+
+var world	= new OIMO.World(60*100)
+onRenderFcts.push(function(delta){
+world.step()
+// console.log(world.contacts[0].relVelY)
+})
+window.world	= world
+
+//////////////////////////////////////////////////////////////////////////////////
+// add the grass ground //
+//////////////////////////////////////////////////////////////////////////////////
+
+var geometry	= new THREE.CubeGeometry(300,2,200);	
+
+var material	= new THREEx.GrassGround({
+repeatX	: 30,
+repeatY	: 30,
+}).material
+var mesh	= new THREE.Mesh( geometry, material );
+mesh.receiveShadow	= true
+mesh.position.y	= -geometry.height/2
+
+var stepBody	= THREEx.Oimo.createBodyFromMesh(world, mesh, false)
+scene.add(mesh)
+
+function lookNear(){
+    switch(true){
+        case camera.position.z > 24:
+            //30 - 20s *1000 / 100 * .03 = 24
+            camera.position.z -= .03; //should 0.03
+            setTimeout(lookNear, 100);
+            break;
+            
+        default:
+            //设置rotation失败；由于有lookAt，所以是自动转的。
+            camera.position.z -= .2;
+            setTimeout(lookNear, 100);
+            break;  
+    }
+}
+
+setTimeout (lookNear , 4000);
+
+    
+//////////////////////////////////////////////////////////////////////////////////
+// comment //
+//////////////////////////////////////////////////////////////////////////////////
+
+var next = getNext();
+
+//function 
+  function getNext(){
+    var index  = -1;
+    return function (){
+      if (index ==54 )
+        index = 0;
+      else
+        index++;
+      return padDigits(index,2);
+    }
+  }
+
+
+function createCube(){
+    var image =  "./images/"+next()+".jpg" ;
+    var geometry = new THREE.CubeGeometry(2, 2, 2);
+    var texture = THREE.ImageUtils.loadTexture(image);
+    var material = new THREE.MeshBasicMaterial( { map: texture } );
+    var mesh = new THREE.Mesh( geometry, material ); 
+
+     return mesh;
+}
+
+function padDigits(number, digits) {
+	return Array(Math.max(digits - String(number).length + 1, 0)).join(0) + number;
+}
+
+;(function(){
+
+var crate	= THREEx.Crates.createCrate2();
+crate.receiveShadow	= true
+crate.castShadow	= true
+crate.scale.multiplyScalar(1.5)
+
+/*
+ for(var x =-5; x <= 5; x++ ){
+ for(var y = 0; y < 10; y++ ){
+ for(var z =-2; z <= 2; z++ ){
+*/
+
+//箱子的个数
+for(var x =-3; x <= 3;x++ ){
+for(var y = 0; y < 3; y++ ){
+for(var z =-2; z <= 2; z++ ){
+(function(){
+// return
+
+
+//var mesh	= crate.clone()
+var mesh  = createCube();
+
+scene.add( mesh )
+
+mesh.position.x	= (x)*crate.scale.x
+mesh.position.y	= (y+crate.geometry.height/2)*crate.scale.y
+mesh.position.z	= (z*crate.scale.z)*3 - 10
+
+//////////////////////////////////////////////////////////////////////////////////
+// comment //
+//////////////////////////////////////////////////////////////////////////////////
+
+// create IOMO.Body from mesh
+var body	= THREEx.Oimo.createBodyFromMesh(world, mesh)
+
+// add an updater for them
+var updater	= new THREEx.Oimo.Body2MeshUpdater(body, mesh)
+onRenderFcts.push(function(delta){
+updater.update()
+})
+})()
+}
+}
+}
+})()
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// comment //
+//////////////////////////////////////////////////////////////////////////////////
+
+;(function(){
+// create mesh
+// var mesh = THREEx.Planets.createEarth()
+var mesh	= THREEx.SportBalls.createFootball()
+window.ball	= mesh
+mesh.receiveShadow	= true
+mesh.castShadow	= true
+mesh.scale.multiplyScalar(5) // The football's scale
+mesh.position.z	= 40
+mesh.position.y	= mesh.geometry.radius*mesh.scale.y
+scene.add( mesh )
+
+// create IOMO.Body from mesh
+var body	= THREEx.Oimo.createBodyFromMesh(world, mesh)
+
+// add an updater for them
+var updater	= new THREEx.Oimo.Body2MeshUpdater(body, mesh)
+onRenderFcts.push(function(delta){
+updater.update()
+})
+
+body.body.linearVelocity.x	= 0
+body.body.linearVelocity.y	= 0
+body.body.linearVelocity.z	= -10
+
+body.body.angularVelocity.x	= -Math.PI*30
+body.body.angularVelocity.y	= 0
+body.body.angularVelocity.z	= 0
+})()
+
+//////////////////////////////////////////////////////////////////////////////////
+// comment //
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Camera Controls //
+//////////////////////////////////////////////////////////////////////////////////
+var mouse	= {x : 0, y : 0}
+document.addEventListener('mousemove', function(event){
+    mouse.x	= (event.clientX / window.innerWidth ) - 0.5
+    mouse.y	= (event.clientY / window.innerHeight) - 0.5
+    }, false)
+    onRenderFcts.push(function(delta, now){
+    camera.position.x += (mouse.x*10 - camera.position.x-10) * (delta*3)
+    camera.position.y += (mouse.y*5 - (camera.position.y-5)) * (delta*3)
+    camera.lookAt( new THREE.Vector3(0,1.5,0) )
+
+///camera.position.x  = camera.position.x  + 10;
+})
+
+// onRenderFcts.push(function(delta, now){
+// camera.position.copy(ball.position)
+// camera.position.y += 3
+// camera.position.z += 20
+// camera.lookAt( camera.position.clone().add(new THREE.Vector3(0,0, -4)) )
+// })
+
+//////////////////////////////////////////////////////////////////////////////////
+// comment //
+//////////////////////////////////////////////////////////////////////////////////
+
+var sunAngle = -2/6*Math.PI*2;
+// var sunAngle = -3/6*Math.PI*2;
+onRenderFcts.push(function(delta, now){
+var dayDuration	= 40	// nb seconds for a full day cycle
+sunAngle	+= delta/dayDuration * Math.PI*2
+})
+
+//////////////////////////////////////////////////////////////////////////////////
+// starfield //
+//////////////////////////////////////////////////////////////////////////////////
+
+var starField	= new THREEx.DayNight.StarField()
+scene.add(starField.object3d)
+onRenderFcts.push(function(delta, now){
+starField.update(sunAngle)
+})
+
+//////////////////////////////////////////////////////////////////////////////////
+// sunSphere //
+//////////////////////////////////////////////////////////////////////////////////
+
+var sunSphere	= new THREEx.DayNight.SunSphere()
+scene.add( sunSphere.object3d )
+onRenderFcts.push(function(delta, now){
+sunSphere.update(sunAngle)
+})
+
+//////////////////////////////////////////////////////////////////////////////////
+// directionalLight //
+//////////////////////////////////////////////////////////////////////////////////
+        
+
+var sunLight	= new THREEx.DayNight.SunLight()
+scene.add( sunLight.object3d )
+onRenderFcts.push(function(delta, now){
+sunLight.update(sunAngle)
+})
+
+//////////////////////////////////////////////////////////////////////////////////
+// skydom //
+//////////////////////////////////////////////////////////////////////////////////
+
+var skydom	= new THREEx.DayNight.Skydom()
+scene.add( skydom.object3d )
+onRenderFcts.push(function(delta, now){
+skydom.update(sunAngle)
+})
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// render the scene //
+//////////////////////////////////////////////////////////////////////////////////
+onRenderFcts.push(function(){
+renderer.render( scene, camera );	
+})
+
+//////////////////////////////////////////////////////////////////////////////////
+// loop runner //
+//////////////////////////////////////////////////////////////////////////////////
+var lastTimeMsec= null
+requestAnimationFrame(function animate(nowMsec){
+// keep looping
+requestAnimationFrame( animate );
+// measure time
+lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+lastTimeMsec	= nowMsec
+// call each update function
+onRenderFcts.forEach(function(onRenderFct){
+onRenderFct(deltaMsec/1000, nowMsec/1000)
+})
+})
+
+})
+
+var audio = document.getElementById("global_music_effect");
+audio.play();
+
+        document.addEventListener('keypress', onKeypress, false);
+
+function onKeypress(event) {
+    switch(event.keyCode){
+        case 32:
+            showDialog();
+            break;
+        case 72:
+            hideDialog();
+            break;
+        default:
+            break;
+    }
+}
+
+</script></body>

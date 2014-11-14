@@ -1,0 +1,73 @@
+<script src="../js/libs/jquery-1.11.0.min.js"></script>
+<script src="../common/js/libs/jquery-1.11.0.min.js"></script>
+
+
+<script>
+    var scenarios = [
+'/scenes/s01-log531/',
+'/scenes/s02-cloud/',
+'/scenes/s03-ocean/',
+'/scenes/s04-panorama/',
+'/scenes/s05-particles/',
+//'/scenes/s06-map/', // blocked by GFW, :(
+'/scenes/s07-lots-photo/',
+'/scenes/s08-double-video/',
+'/scenes/s09-pageIn3D/',
+'/scenes/s10-car-racing/',
+'/scenes/s11-football/',
+'/scenes/s12-karma/'
+
+]
+
+
+    function getNextPath(curPath) {
+
+        console.log('curPath', curPath, curPath.substring(5, 7))
+
+        var nextIndex = scenarios.indexOf(curPath) + 1;
+        console.log('nextIndex', nextIndex)
+        if (nextIndex == scenarios.length)
+            return scenarios[0];
+        else
+            return scenarios[nextIndex];
+    }
+
+    function getPreviousPath(curPath) {
+        var nextIndex = scenarios.indexOf(curPath) - 1;
+        console.log('previousIndex:', nextIndex);
+        if (nextIndex == -1)
+            return scenarios[scenarios.length - 1];
+        else
+            return scenarios[nextIndex];
+    }
+
+
+    function padDigits(number, digits) {
+        return Array(Math.max(digits - String(number).length + 1, 0)).join(0) + number;
+    }
+
+    $(document).keypress(function (e) {
+        var curPath = window.location.pathname;
+        console.log('curPath', curPath);
+
+        var key = e.which;
+        console.log('key', key)
+        switch (key) {
+        case 110:
+            console.log("n", window.location);
+            var nextPath = getNextPath(curPath);
+            console.log('nextPath', nextPath)
+            window.location = getNextPath(curPath);
+            break;
+        case 112:
+            console.log("p", window.location);
+            var previousPath = getPreviousPath(curPath);
+            console.log('previousPath', previousPath);
+            window.location = previousPath;
+            break;
+        default:
+            console.log(key);
+            console.log(window.location.pathname, 'curPath', curPath);
+        }
+    });
+</script>

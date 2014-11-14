@@ -1,0 +1,328 @@
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - geometry - terrain</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #000;
+				font-family:Monospace;
+				font-size:13px;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				text-align:center;
+				padding: 5px;
+			}
+
+			a {
+
+				color: #a06851;
+			}
+
+		</style>
+	</head>
+	<body>
+        <audio id="themeAudio">
+            <source src="audio/LoveConcerto.mp3" type="audio/ogg">
+        </audio>
+        <div id="overlay" class="overlay" >
+    <div id="dialog" class="dialog"> </div>
+ </div>
+        
+		<script src="../common/js/libs/three.min.js"></script>
+		<script src="../common/js/libs/TWEEN.js"></script>
+        <script src="../common/fonts/youyuan_regular.typeface.js"></script>
+
+		<script src="../common/js/libs/controls/OrbitControls.js"></script>
+		<script src="js/Mirror.js"></script>
+		<script src="js/WaterShader.js"></script>
+
+		<script src="../common/js/libs/Detector.js"></script>
+        
+        
+            <link rel="stylesheet" type="text/css" href="css/dialog.css" />
+
+	<script src="js/dialog2.js"></script>
+	<script src="js/531Helper.js"></script>
+	<script src="js/title.js"></script>
+	<script src="js/actions.js"></script>
+
+		<script>
+            var planeMesh;
+
+			if ( ! Detector.webgl ) {
+
+				Detector.addGetWebGLMessage();
+				document.getElementById( 'container' ).innerHTML = "";
+
+			}
+
+			var container;
+			var camera, scene, renderer;
+			var directionalLight;
+            var skyBox;
+			var parameters = {
+				width: 2000,
+				height: 2000,
+				widthSegments: 250,
+				heightSegments: 250,
+				depth: 1500,
+				param: 4,
+				filterparam: 1
+			}
+			
+			var waterNormals;
+
+			init();
+			animate();
+            //window.setTimeout(fadeOut, 3000);
+            runActions();
+            //console.log('here')
+			function init() {
+                //Play the audio (just once)
+                var audio = document.getElementById("themeAudio");
+                audio.play();
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				scene = new THREE.Scene();
+				camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.5, 3000000 );
+
+				camera.position.set( 0, Math.max( parameters.width * 1.5, parameters.height ) / 8, parameters.height );
+				camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.userPan = false;
+				controls.userPanSpeed = 0.0;
+				controls.maxDistance = 5000.0;
+				controls.maxPolarAngle = Math.PI * 0.495;
+
+				directionalLight = new THREE.DirectionalLight( 0xffff55, 1 );
+				directionalLight.position.set( - 1, 0.4, - 1 );
+				scene.add( directionalLight );
+
+				
+				waterNormals = new THREE.ImageUtils.loadTexture( 'textures/waternormals.jpg' );
+				waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping; 
+
+				water = new THREE.Water( renderer, camera, scene, {
+					textureWidth: 512, 
+					textureHeight: 512,
+					waterNormals: waterNormals,
+					alpha: 	1.0,
+					sunDirection: directionalLight.position.normalize(),
+					sunColor: 0xffffff,
+					waterColor: 0x001e0f,
+					distortionScale: 50.0,
+				} );
+
+
+				mirrorMesh = new THREE.Mesh(
+					new THREE.PlaneGeometry( parameters.width * 500, parameters.height * 500, 50, 50 ), 
+					water.material
+				);
+				
+
+				mirrorMesh.add( water );
+				mirrorMesh.rotation.x = - Math.PI * 0.5;
+				scene.add( mirrorMesh );
+
+
+				// load skybox
+
+				var cubeMap = new THREE.Texture( [] );
+				cubeMap.format = THREE.RGBFormat;
+				cubeMap.flipY = false;
+
+				var loader = new THREE.ImageLoader();
+				loader.load( 'textures/skyboxsun25degtest.png', function ( image ) {
+
+					var getSide = function ( x, y ) {
+
+						var size = 1024;
+
+						var canvas = document.createElement( 'canvas' );
+						canvas.width = size;
+						canvas.height = size;
+
+						var context = canvas.getContext( '2d' );
+						context.drawImage( image, - x * size, - y * size );
+
+						return canvas;
+
+					};
+
+					cubeMap.image[ 0 ] = getSide( 2, 1 ); // px
+					cubeMap.image[ 1 ] = getSide( 0, 1 ); // nx
+					cubeMap.image[ 2 ] = getSide( 1, 0 ); // py
+					cubeMap.image[ 3 ] = getSide( 1, 2 ); // ny
+					cubeMap.image[ 4 ] = getSide( 1, 1 ); // pz
+					cubeMap.image[ 5 ] = getSide( 3, 1 ); // nz
+					cubeMap.needsUpdate = true;
+
+				} );
+
+				var cubeShader = THREE.ShaderLib['cube'];
+				cubeShader.uniforms['tCube'].value = cubeMap;
+
+				var skyBoxMaterial = new THREE.ShaderMaterial( {
+					fragmentShader: cubeShader.fragmentShader,
+					vertexShader: cubeShader.vertexShader,
+					uniforms: cubeShader.uniforms,
+					depthWrite: false,
+					side: THREE.BackSide
+				});
+
+				skyBox = new THREE.Mesh(
+					new THREE.BoxGeometry( 1000000, 1000000, 1000000 ),
+					skyBoxMaterial
+				);
+				
+				scene.add( skyBox );
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+				render();
+
+			}
+
+			function render() {
+
+				water.material.uniforms.time.value += 1.0 / 60.0;
+				controls.update();
+				water.render();
+				renderer.render( scene, camera );
+
+			}
+
+			function fadeOut(){
+				console.log('Fade out...');
+				
+                 directionalLight.onlyShadow = true;
+                 directionalLight.intensity = 0;
+                 console.log('sky box:', skyBox);
+                 
+				// Set the background color of the scene.
+                 //renderer.setClearColor(0x0, 1);
+                 //camera.position.z = 5000000;
+                 //                 camera.position.y = 5000000;
+                 //camera.position.x = 5000000;
+
+				//for(var i=0; i<4; i++){
+				//	setTransparency(i);
+				//}
+				/* 
+				renderer = new THREE.WebGLRenderer( { preserveDrawingBuffer: true } );
+renderer.autoClearColor = false;
+
+// background plane
+var plane = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100 ), new THREE.MeshBasicMaterial( { transparent: true, opacity: 0.1 } ) );
+plane.position.z = -10;
+scene.add( plane );
+				renderer.render( scene, camera );
+
+				/**/
+
+/*
+				new TWEEN.Tween(skyBox.material.color.getHSV())
+    .to({h: h, s: s, v: v}, 200)
+    .easing(TWEEN.Easing.Quartic.In)
+    .onUpdate(
+        function()
+        {
+            skyBox.material.color.setHSV(this.h, this.s, this.v);
+        }
+    )
+    .start();
+*/
+
+			}
+
+
+THREE.Color.prototype.getHSV = function()
+{
+    var rr, gg, bb,
+        h, s,
+        r = this.r,
+        g = this.g,
+        b = this.b,
+        v = Math.max(r, g, b),
+        diff = v - Math.min(r, g, b),
+        diffc = function(c)
+        {
+            return (v - c) / 6 / diff + 1 / 2;
+        };
+
+    if (diff == 0) {
+        h = s = 0;
+    } else {
+        s = diff / v;
+        rr = diffc(r);
+        gg = diffc(g);
+        bb = diffc(b);
+
+        if (r === v) {
+            h = bb - gg;
+        } else if (g === v) {
+            h = (1 / 3) + rr - bb;
+        } else if (b === v) {
+            h = (2 / 3) + gg - rr;
+        }
+        if (h < 0) {
+            h += 1;
+        } else if (h > 1) {
+            h -= 1;
+        }
+    }
+    return {
+        h: h,
+        s: s,
+        v: v
+    };
+};
+
+
+function setTransparency(index){
+   var obj3D = scene.children[2]; //scene.getChildByName(obj3DName)
+      if(obj3D.material){
+         obj3D.material.opacity = 0.1;
+   }
+}
+
+document.addEventListener( 'keydown', handleKeyDown, false );
+
+function handleKeyDown(event){
+switch(event.keyCode){
+    case 32:
+        showDialog();
+        break;
+    case 72:
+        hideDialog();
+        break;
+    default:
+        break;
+    }
+}
+
+
+		</script>
+
+        
+	</body>
+</html>
